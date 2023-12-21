@@ -1,7 +1,8 @@
 [package]
 name = "b_trees"
 authors = ["nisaacdz"]
-
+license = "Apache License 2.0"
+description = "Implementations for various binary trees including AVL tree"
 version = "0.0.1"
 edition = "2021"
 
