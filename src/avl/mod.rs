@@ -24,19 +24,18 @@
 
 use std::{collections::LinkedList, fmt::Debug};
 
-use iters::{Decreasing, Increasing, Levels};
 use super::Node;
+use iters::{Decreasing, Increasing, Levels};
 
 mod iters;
 
-
 /// ## Description
 ///
-/// An AVL tree is a self-balancing binary search tree that maintains a height difference of at most 1 
-/// between its left and right subtrees. This property ensures that the tree remains balanced, 
-/// which in turn guarantees that the time complexities of `insertion`, `deletion`,`lookup` are all `O(log(n))` 
-/// Compared to normal binary search trees, AVL trees provide faster lookups and insertions, but 
-/// slower deletions. Compared to heaps, AVL trees are more strictly balanced, which makes them 
+/// An AVL tree is a self-balancing binary search tree that maintains a height difference of at most 1
+/// between its left and right subtrees. This property ensures that the tree remains balanced,
+/// which in turn guarantees that the time complexities of `insertion`, `deletion`,`lookup` are all `O(log(n))`
+/// Compared to normal binary search trees, AVL trees provide faster lookups and insertions, but
+/// slower deletions. Compared to heaps, AVL trees are more strictly balanced, which makes them
 /// faster for lookups, but slower for insertions and deletions.
 ///
 /// ## Time complexities
@@ -72,13 +71,16 @@ impl<T> AVL<T> {
     pub fn height(&self) -> usize {
         match &self.root {
             Some(root) => root.height as usize,
-            None => 0
+            None => 0,
         }
     }
 
     #[inline]
     pub fn levels(&self) -> impl Iterator<Item = impl Iterator<Item = Option<&T>>> {
-        Levels { h_left: self.height(), cur: LinkedList::from_iter(Some(self.root.as_ref()))}
+        Levels {
+            h_left: self.height(),
+            cur: LinkedList::from_iter(Some(self.root.as_ref())),
+        }
     }
 
     #[inline]
@@ -115,8 +117,12 @@ impl<T: Ord> AVL<T> {
             let (v, val) = root.delete(&val);
             con = v;
             val
-        } else { None };
-        if con { self.len -= 1 }
+        } else {
+            None
+        };
+        if con {
+            self.len -= 1
+        }
         con
     }
 
@@ -128,6 +134,24 @@ impl<T: Ord> AVL<T> {
     #[inline]
     pub fn min(&self) -> Option<&T> {
         self.root.as_ref().map(|r| r.find_min())
+    }
+
+    #[inline]
+    pub fn nearest_by<'a, F>(&'a self, target: &'a T, f: F) -> Option<&'a T>
+    where
+        F: 'static + Fn(&'a T, &'a T) -> &'a T,
+        T: 'a,
+    {
+        self.root.as_ref().map(|r| r.nearest_by(target, &f))
+    }
+
+    #[inline]
+    pub fn farthest_by<'a, F>(&'a self, target: &'a T, f: F) -> Option<&'a T>
+    where
+        F: 'static + Fn(&'a T, &'a T) -> &'a T,
+        T: 'a,
+    {
+        self.root.as_ref().map(|r| r.farthest_by(target, &f))
     }
 }
 

@@ -186,6 +186,61 @@ impl<T: PartialEq + Ord> Node<T> {
             (con, None)
         }
     }
+    pub fn nearest_by<'a, F>(&'a self, target: &'a T, f: &F) -> &'a T
+    where
+        T: 'a,
+        F: Fn(&'a T, &'a T) -> &'a T,
+    {
+        use std::cmp::Ordering;
+        match target.cmp(&self.val) {
+            Ordering::Equal => &self.val,
+            Ordering::Greater => {
+                if let Some(right) = &self.right {
+                    f(&self.val, right.nearest_by(target, f))
+                } else {
+                    &self.val
+                }
+            }
+            Ordering::Less => {
+                if let Some(left) = &self.left {
+                    f(&self.val, left.nearest_by(target, f))
+                } else {
+                    &self.val
+                }
+            }
+        }
+    }
+
+    pub fn farthest_by<'a, F>(&'a self, target: &'a T, f: &F) -> &'a T
+    where
+        T: 'a,
+        F: Fn(&'a T, &'a T) -> &'a T,
+    {
+        use std::cmp::Ordering;
+        match target.cmp(&self.val) {
+            Ordering::Equal => match (&self.left, &self.right) {
+                (Some(left), Some(right)) => {
+                    f(left.farthest_by(target, f), right.farthest_by(target, f))
+                }
+                (Some(only), _) | (_, Some(only)) => only.farthest_by(target, f),
+                _ => &self.val,
+            },
+            Ordering::Greater => {
+                if let Some(left) = &self.left {
+                    f(&self.val, left.farthest_by(target, f))
+                } else {
+                    &self.val
+                }
+            }
+            Ordering::Less => {
+                if let Some(right) = &self.right {
+                    f(&self.val, right.farthest_by(target, f))
+                } else {
+                    &self.val
+                }
+            }
+        }
+    }
 }
 
 impl Node<i32> {

@@ -12,7 +12,10 @@ impl<'a, T> FakeNode<'a, T> {
 
         while let Some(left_node) = &cur.node.left {
             parent = Some(Box::new(cur));
-            cur = FakeNode { node: left_node, parent };
+            cur = FakeNode {
+                node: left_node,
+                parent,
+            };
         }
         cur
     }
@@ -20,14 +23,17 @@ impl<'a, T> FakeNode<'a, T> {
         let mut cur = FakeNode { parent, node };
         while let Some(left_node) = &cur.node.left {
             parent = Some(Box::new(cur));
-            cur = FakeNode { node: left_node, parent };
+            cur = FakeNode {
+                node: left_node,
+                parent,
+            };
         }
         cur
     }
 }
 
 pub struct Increasing<'a, T> {
-    node: Option<Box<FakeNode<'a, T>>>
+    node: Option<Box<FakeNode<'a, T>>>,
 }
 
 impl<'a, T> Increasing<'a, T> {
@@ -60,4 +66,3 @@ impl<'a, T> Iterator for Increasing<'a, T> {
         }
     }
 }
-

@@ -8,7 +8,7 @@ pub struct Levels<'a, T> {
 }
 
 pub struct Level<'a, T> {
-    ll:  LinkedList<Option<&'a Box<Node<T>>>>,
+    ll: LinkedList<Option<&'a Box<Node<T>>>>,
 }
 
 impl<'a, T: std::fmt::Debug> std::fmt::Debug for Level<'a, T> {
@@ -34,7 +34,9 @@ impl<'a, T> Iterator for Levels<'a, T> {
                 newlist.push_back(node.map(|n| n.right.as_ref()).flatten());
             }
             self.h_left -= 1;
-            Some(Level { ll: std::mem::replace(&mut self.cur, newlist) })
+            Some(Level {
+                ll: std::mem::replace(&mut self.cur, newlist),
+            })
         } else {
             None
         }
