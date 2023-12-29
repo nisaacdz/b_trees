@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, cmp::Ordering};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Node<T> {
@@ -8,7 +8,7 @@ pub(crate) struct Node<T> {
     pub(crate) right: Option<Box<Node<T>>>,
 }
 
-impl<T: PartialOrd> Node<T> {
+impl<T: Ord> Node<T> {
     pub(crate) fn new(val: T) -> Self {
         Node {
             val,
@@ -26,6 +26,27 @@ impl<T: PartialOrd> Node<T> {
         self.left.as_ref().map(|l| l.height).unwrap_or(0)
             - self.right.as_ref().map(|r| r.height).unwrap_or(0)
     }
+    
+    #[inline]
+    pub(crate) fn balance(self: &mut Box<Node<T>>) {
+        let bf = self.bf();
+        if bf > 1 {
+            if let Some(left) = &mut self.left {
+                if left.bf() < 0 {
+                    left.rotate_left();
+                }
+
+                self.rotate_right();
+            }
+        } else if bf < -1 {
+            if let Some(right) = &mut self.right {
+                if right.bf() > 0 {
+                    right.rotate_right();
+                }
+                self.rotate_left();
+            }
+        }
+    }
 
     pub(crate) fn find_min(&self) -> &T {
         if let Some(left) = &self.left {
@@ -41,6 +62,39 @@ impl<T: PartialOrd> Node<T> {
         } else {
             &self.val
         }
+    }
+
+    pub(crate) fn insert_distinct(self: &mut Box<Self>, val: T) -> bool {
+        let res = match val.cmp(&self.val) {
+            Ordering::Less => if let Some(left) = &mut self.left {
+                left.insert_distinct(val)
+            } else {
+                self.left = Some(Box::new(Node {
+                    height: 1,
+                    val,
+                    left: None,
+                    right: None,
+                }));
+                true
+            },
+            Ordering::Equal => {
+                self.val = val;
+                false
+            },
+            Ordering::Greater => if let Some(right) = &mut self.right {
+                right.insert_distinct(val)
+            } else {
+                self.right = Some(Box::new(Node {
+                    height: 1,
+                    val,
+                    left: None,
+                    right: None,
+                }));
+                true
+            },
+        };
+        self.balance();
+        res
     }
 
     pub(crate) fn insert(self: &mut Box<Self>, val: T) {
@@ -68,23 +122,7 @@ impl<T: PartialOrd> Node<T> {
             }
         }
         self.update_height();
-        let bf = self.bf();
-        if bf > 1 {
-            if let Some(left) = &mut self.left {
-                if left.bf() < 0 {
-                    left.rotate_left();
-                }
-
-                self.rotate_right();
-            }
-        } else if bf < -1 {
-            if let Some(right) = &mut self.right {
-                if right.bf() > 0 {
-                    right.rotate_right();
-                }
-                self.rotate_left();
-            }
-        }
+        self.balance();
     }
 }
 
@@ -122,9 +160,9 @@ impl<T> Node<T> {
     }
 }
 
-impl<T: PartialEq + Ord> Node<T> {
+impl<T: Ord> Node<T> {
     pub(crate) fn delete(mut self: Box<Node<T>>, val: &T) -> (bool, Option<Box<Node<T>>>) {
-        let (con, rv) = if val == &self.val {
+        let (con, mut rv) = if val == &self.val {
             match (self.left, self.right) {
                 (Some(left), Some(mut right)) => {
                     let mut t_val = &mut right;
@@ -162,48 +200,26 @@ impl<T: PartialEq + Ord> Node<T> {
                 (false, Some(self))
             }
         };
-
-        if let Some(mut res) = rv {
-            let bf = res.bf();
-            if bf > 1 {
-                if let Some(left) = &mut res.left {
-                    if left.bf() < 0 {
-                        left.rotate_left();
-                    }
-
-                    res.rotate_right();
-                }
-            } else if bf < -1 {
-                if let Some(right) = &mut res.right {
-                    if right.bf() > 0 {
-                        right.rotate_right();
-                    }
-                    res.rotate_left();
-                }
-            }
-            (con, Some(res))
-        } else {
-            (con, None)
-        }
+        rv.as_mut().map(|v| v.balance());
+        (con, rv)
     }
-    pub fn nearest_by<'a, F>(&'a self, target: &'a T, f: &F) -> &'a T
+    pub(crate) fn nearest_to<'a, F>(&'a self, target: &'a T, by: &F) -> &'a T
     where
         T: 'a,
         F: Fn(&'a T, &'a T) -> &'a T,
     {
-        use std::cmp::Ordering;
         match target.cmp(&self.val) {
             Ordering::Equal => &self.val,
             Ordering::Greater => {
                 if let Some(right) = &self.right {
-                    f(&self.val, right.nearest_by(target, f))
+                    by(&self.val, right.nearest_to(target, by))
                 } else {
                     &self.val
                 }
             }
             Ordering::Less => {
                 if let Some(left) = &self.left {
-                    f(&self.val, left.nearest_by(target, f))
+                    by(&self.val, left.nearest_to(target, by))
                 } else {
                     &self.val
                 }
@@ -211,30 +227,37 @@ impl<T: PartialEq + Ord> Node<T> {
         }
     }
 
-    pub fn farthest_by<'a, F>(&'a self, target: &'a T, f: &F) -> &'a T
+    pub(crate) fn contains(&self, target: &T) -> bool {
+        match target.cmp(&self.val) {
+            Ordering::Less => self.left.as_ref().map(|l| l.contains(target)).unwrap_or(false),
+            Ordering::Equal => true,
+            Ordering::Greater => self.right.as_ref().map(|r| r.contains(target)).unwrap_or(false),
+        }
+    }
+
+    pub(crate) fn farthest_to<'a, F>(&'a self, target: &'a T, by: &F) -> &'a T
     where
         T: 'a,
         F: Fn(&'a T, &'a T) -> &'a T,
     {
-        use std::cmp::Ordering;
         match target.cmp(&self.val) {
             Ordering::Equal => match (&self.left, &self.right) {
                 (Some(left), Some(right)) => {
-                    f(left.farthest_by(target, f), right.farthest_by(target, f))
+                    by(left.farthest_to(target, by), right.farthest_to(target, by))
                 }
-                (Some(only), _) | (_, Some(only)) => only.farthest_by(target, f),
+                (Some(only), _) | (_, Some(only)) => only.farthest_to(target, by),
                 _ => &self.val,
             },
             Ordering::Greater => {
                 if let Some(left) = &self.left {
-                    f(&self.val, left.farthest_by(target, f))
+                    by(&self.val, left.farthest_to(target, by))
                 } else {
                     &self.val
                 }
             }
             Ordering::Less => {
                 if let Some(right) = &self.right {
-                    f(&self.val, right.farthest_by(target, f))
+                    by(&self.val, right.farthest_to(target, by))
                 } else {
                     &self.val
                 }
@@ -243,32 +266,29 @@ impl<T: PartialEq + Ord> Node<T> {
     }
 }
 
-impl Node<i32> {
-    pub fn nearest(self: &Box<Self>, val: i32) -> i32 {
-        if val == self.val {
-            self.val
-        } else if val < self.val {
-            if let Some(left) = &self.left {
-                let ll = left.nearest(val);
-                if i32::abs(ll - val) < i32::abs(self.val - val) {
-                    ll
-                } else {
-                    self.val
-                }
-            } else {
-                self.val
-            }
-        } else {
-            if let Some(right) = &self.right {
-                let rr = right.nearest(val);
-                if i32::abs(rr - val) < i32::abs(self.val - val) {
-                    rr
-                } else {
-                    self.val
-                }
-            } else {
-                self.val
-            }
+
+impl<T> Node<T> {
+    pub(crate) fn contains_by(&self, mut f: impl FnMut(&T) -> Ordering) -> bool {
+        match f(&self.val) {
+            Ordering::Less => self.left.as_ref().map(|l| l.contains_by(f)).unwrap_or(false),
+            Ordering::Equal => true,
+            Ordering::Greater => self.right.as_ref().map(|r| r.contains_by(f)).unwrap_or(false),
+        }
+    }
+
+    pub(crate) fn get_by(&self, mut f: impl FnMut(&T) -> Ordering) -> Option<&T> {
+        match f(&self.val) {
+            Ordering::Less => self.left.as_ref().map(|l| l.get_by(f)).unwrap_or(None),
+            Ordering::Equal => Some(&self.val),
+            Ordering::Greater => self.right.as_ref().map(|r| r.get_by(f)).unwrap_or(None),
+        }
+    }
+
+    pub(crate) fn get_mut_by(&mut self, mut f: impl FnMut(&T) -> Ordering) -> Option<&mut T> {
+        match f(&self.val) {
+            Ordering::Less => self.left.as_mut().map(|l| l.get_mut_by(f)).unwrap_or(None),
+            Ordering::Equal => Some(&mut self.val),
+            Ordering::Greater => self.right.as_mut().map(|r| r.get_mut_by(f)).unwrap_or(None),
         }
     }
 }
