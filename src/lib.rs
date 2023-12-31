@@ -38,8 +38,8 @@ macro_rules! impl_nearer_signed {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Pair<K, V> {
-    key: K,
-    val: V,
+    pub key: K,
+    pub val: V,
 }
 
 impl<K: Ord, V> PartialEq for Pair<K, V> {

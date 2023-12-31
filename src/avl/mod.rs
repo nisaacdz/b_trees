@@ -31,7 +31,7 @@ use self::iters::{IntoIncreasing, IntoDecreasing};
 use super::Node;
 use iters::{Decreasing, Increasing, Levels, IntoIter, Iter};
 
-mod iters;
+pub(crate) mod iters;
 
 /// ## Description
 ///

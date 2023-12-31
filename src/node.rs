@@ -63,6 +63,7 @@ impl<T: Ord> Node<T> {
                 true
             },
         };
+        self.update_height();
         self.balance();
         res
     }
@@ -126,9 +127,9 @@ impl<T> Node<T> {
             }
         }
     }
-    
+
     #[inline]
-    fn update_height(&mut self) {
+    pub(crate) fn update_height(&mut self) {
         self.height = 1 + i32::max(
             self.left.as_ref().map(|l| l.height).unwrap_or(0),
             self.right.as_ref().map(|r| r.height).unwrap_or(0),
@@ -167,6 +168,7 @@ impl<T: Ord> Node<T> {
                 if let Some(ln) = self.left.take() {
                     let (r, ln) = ln.remove_by(f);
                     self.left = ln;
+                    self.update_height();
                     (r, Some(self))
                 } else {
                     (None, Some(self))
@@ -199,6 +201,7 @@ impl<T: Ord> Node<T> {
                 if let Some(rn) = self.right.take() {
                     let (r, rn) = rn.remove_by(f);
                     self.right = rn;
+                    self.update_height();
                     (r, Some(self))
                 } else {
                     (None, Some(self))
@@ -236,6 +239,7 @@ impl<T: Ord> Node<T> {
             if let Some(rn) = self.right.take() {
                 let (r, rn) = rn.delete(val);
                 self.right = rn;
+                self.update_height();
                 (r, Some(self))
             } else {
                 (None, Some(self))
@@ -244,6 +248,7 @@ impl<T: Ord> Node<T> {
             if let Some(ln) = self.left.take() {
                 let (r, ln) = ln.delete(val);
                 self.left = ln;
+                self.update_height();
                 (r, Some(self))
             } else {
                 (None, Some(self))

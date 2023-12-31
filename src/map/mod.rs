@@ -3,12 +3,17 @@ use std::fmt::Debug;
 use crate::{AVL, Pair};
 
 pub struct BTreeMap<K, V> {
-    avl: AVL<Pair<K, V>>,
+    pub(crate) avl: AVL<Pair<K, V>>,
 }
 
 impl<K, V> BTreeMap<K, V> {
     pub fn new() -> Self {
         Self { avl: AVL::new() }
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn avl(&self) -> &AVL<Pair<K, V>> {
+        &self.avl
     }
 
     pub fn is_empty(&self) -> bool {
@@ -31,7 +36,7 @@ impl<K: Ord, V> BTreeMap<K, V> {
         self.avl.root.as_ref().map(|v| v.contains_by(|en| key.cmp(&en.key))).unwrap_or(false)
     }
 
-    pub fn delete(&mut self, key: &K) -> Option<Pair<K, V>> {
+    pub fn remove(&mut self, key: &K) -> Option<Pair<K, V>> {
         self.avl.remove_by(|v| key.cmp(&v.key))
     }
 
@@ -50,10 +55,6 @@ impl<K: Ord, V> BTreeMap<K, V> {
 
     pub fn iter(&self) -> impl Iterator<Item = &Pair<K, V>> {
         self.avl.increasing()
-    }
-
-    pub fn into_iter(self) -> impl Iterator<Item = Pair<K, V>> {
-        self.avl.into_increasing()
     }
 
     pub fn keys(&self) -> impl Iterator<Item = &K> {
@@ -78,5 +79,14 @@ impl<K: Ord, V> BTreeMap<K, V> {
 
     pub fn decreasing(&self) -> impl Iterator<Item = &Pair<K, V>> {
         self.avl.decreasing()
+    }
+}
+
+
+impl<K: Ord, V> IntoIterator for BTreeMap<K, V> {
+    type IntoIter = crate::iters::IntoIncreasing<Pair<K, V>>;
+    type Item = Pair<K, V>;
+    fn into_iter(self) -> Self::IntoIter {
+        crate::iters::IntoIncreasing::new(self.avl.root)
     }
 }
