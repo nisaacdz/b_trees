@@ -36,6 +36,7 @@ macro_rules! impl_nearer_signed {
 }
 
 
+#[derive(Debug, Clone, Copy)]
 pub struct Pair<K, V> {
     key: K,
     val: V,

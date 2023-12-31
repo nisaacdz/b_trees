@@ -18,36 +18,6 @@ impl<T: Ord> Node<T> {
         }
     }
 
-    /// # Balance Factor
-    ///
-    /// This function computes and returns the balance factor of the currrent node
-    #[inline]
-    pub(crate) fn bf(&self) -> i32 {
-        self.left.as_ref().map(|l| l.height).unwrap_or(0)
-            - self.right.as_ref().map(|r| r.height).unwrap_or(0)
-    }
-    
-    #[inline]
-    pub(crate) fn balance(self: &mut Box<Node<T>>) {
-        let bf = self.bf();
-        if bf > 1 {
-            if let Some(left) = &mut self.left {
-                if left.bf() < 0 {
-                    left.rotate_left();
-                }
-
-                self.rotate_right();
-            }
-        } else if bf < -1 {
-            if let Some(right) = &mut self.right {
-                if right.bf() > 0 {
-                    right.rotate_right();
-                }
-                self.rotate_left();
-            }
-        }
-    }
-
     pub(crate) fn find_min(&self) -> &T {
         if let Some(left) = &self.left {
             left.find_min()
@@ -127,6 +97,36 @@ impl<T: Ord> Node<T> {
 }
 
 impl<T> Node<T> {
+    /// # Balance Factor
+    ///
+    /// This function computes and returns the balance factor of the currrent node
+    #[inline]
+    pub(crate) fn bf(&self) -> i32 {
+        self.left.as_ref().map(|l| l.height).unwrap_or(0)
+            - self.right.as_ref().map(|r| r.height).unwrap_or(0)
+    }
+    
+    #[inline]
+    pub(crate) fn balance(self: &mut Box<Node<T>>) {
+        let bf = self.bf();
+        if bf > 1 {
+            if let Some(left) = &mut self.left {
+                if left.bf() < 0 {
+                    left.rotate_left();
+                }
+
+                self.rotate_right();
+            }
+        } else if bf < -1 {
+            if let Some(right) = &mut self.right {
+                if right.bf() > 0 {
+                    right.rotate_right();
+                }
+                self.rotate_left();
+            }
+        }
+    }
+    
     #[inline]
     fn update_height(&mut self) {
         self.height = 1 + i32::max(
@@ -161,7 +161,55 @@ impl<T> Node<T> {
 }
 
 impl<T: Ord> Node<T> {
-    pub(crate) fn delete(mut self: Box<Node<T>>, val: &T) -> (bool, Option<Box<Node<T>>>) {
+    pub(crate) fn remove_by(mut self: Box<Node<T>>, mut f: impl FnMut(&T) -> Ordering) -> (Option<T>, Option<Box<Node<T>>>) {
+        let (rem, mut res) = match f(&self.val) {
+            Ordering::Less => {
+                if let Some(ln) = self.left.take() {
+                    let (r, ln) = ln.remove_by(f);
+                    self.left = ln;
+                    (r, Some(self))
+                } else {
+                    (None, Some(self))
+                }
+            },
+            Ordering::Equal => {
+                match (self.left, self.right) {
+                    (Some(left), Some(mut right)) => {
+                        let mut t_val = &mut right;
+                        while let Some(val) = &mut t_val.left {
+                            t_val = val;
+                        }
+                        let new_val = std::mem::replace(&mut t_val.val, self.val);
+                        let (d, right) = right.remove_by(f);
+                        let left = Some(left);
+                        let mut newnode = Box::new(Node {
+                            height: 1,
+                            val: new_val,
+                            left,
+                            right,
+                        });
+                        newnode.update_height();
+                        (d, Some(newnode))
+                    }
+                    (None, None) => (Some(self.val), None),
+                    (v, None) | (None, v) => (Some(self.val), v),
+                }
+            },
+            Ordering::Greater => {
+                if let Some(rn) = self.right.take() {
+                    let (r, rn) = rn.remove_by(f);
+                    self.right = rn;
+                    (r, Some(self))
+                } else {
+                    (None, Some(self))
+                }
+            },
+        };
+
+        res.as_mut().map(|v| v.balance());
+        (rem, res)
+    }
+    pub(crate) fn delete(mut self: Box<Node<T>>, val: &T) -> (Option<T>, Option<Box<Node<T>>>) {
         let (con, mut rv) = if val == &self.val {
             match (self.left, self.right) {
                 (Some(left), Some(mut right)) => {
@@ -170,7 +218,7 @@ impl<T: Ord> Node<T> {
                         t_val = val;
                     }
                     let new_val = std::mem::replace(&mut t_val.val, self.val);
-                    let right = right.delete(&val).1;
+                    let (d, right) = right.delete(&val);
                     let left = Some(left);
                     let mut newnode = Box::new(Node {
                         height: 1,
@@ -179,9 +227,10 @@ impl<T: Ord> Node<T> {
                         right,
                     });
                     newnode.update_height();
-                    (true, Some(newnode))
+                    (d, Some(newnode))
                 }
-                (v, None) | (None, v) => (true, v),
+                (None, None) => (Some(self.val), None),
+                (v, None) | (None, v) => (Some(self.val), v),
             }
         } else if val > &self.val {
             if let Some(rn) = self.right.take() {
@@ -189,7 +238,7 @@ impl<T: Ord> Node<T> {
                 self.right = rn;
                 (r, Some(self))
             } else {
-                (false, Some(self))
+                (None, Some(self))
             }
         } else {
             if let Some(ln) = self.left.take() {
@@ -197,7 +246,7 @@ impl<T: Ord> Node<T> {
                 self.left = ln;
                 (r, Some(self))
             } else {
-                (false, Some(self))
+                (None, Some(self))
             }
         };
         rv.as_mut().map(|v| v.balance());

@@ -22,7 +22,7 @@
 //! assert_eq!(iter.next(), None);
 //! ```
 
-use std::{collections::LinkedList, fmt::Debug};
+use std::{collections::LinkedList, fmt::Debug, cmp::Ordering};
 
 use crate::Nearness;
 
@@ -160,11 +160,43 @@ impl<T: Ord> AVL<T> {
     }
 
     #[inline]
+    pub fn remove_by(&mut self, f: impl FnMut(&T) -> Ordering) -> Option<T> {
+        let mut res = None;
+        self.root = if let Some(root) = self.root.take() {
+            let (v, val) = root.remove_by(f);
+            res = v;
+            val
+        } else {
+            None
+        };
+        if res.is_some() {
+            self.len -= 1
+        }
+        res
+    }
+
+    #[inline]
+    pub fn remove(&mut self, val: &T) -> Option<T> {
+        let mut res = None;
+        self.root = if let Some(root) = self.root.take() {
+            let (v, val) = root.delete(&val);
+            res = v;
+            val
+        } else {
+            None
+        };
+        if res.is_some() {
+            self.len -= 1
+        }
+        res
+    }
+
+    #[inline]
     pub fn delete(&mut self, val: &T) -> bool {
         let mut con = false;
         self.root = if let Some(root) = self.root.take() {
             let (v, val) = root.delete(&val);
-            con = v;
+            con = v.is_some();
             val
         } else {
             None
